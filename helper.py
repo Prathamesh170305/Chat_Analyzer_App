@@ -214,22 +214,25 @@ def week_activity_map(selected_user, df):
     return day_counts
 
 def sentiment_analysis(df, selected_user='Overall'):
-    # FIX: Basic sentiment analysis without external dependencies
     if selected_user != 'Overall':
         df = df[df['user'] == selected_user]
     
-    # Skip system notifications and media messages
     df = df[df['user'] != 'group_notification']
     df = df[df['message'] != '<Media omitted>\n']
     
-    # Simple sentiment analysis using basic keyword matching
+    if df.empty:
+        return {'Positive': 0, 'Negative': 0, 'Neutral': 0}, df
+    
+    df = df.copy()
+    
     positive_words = ['happy', 'love', 'great', 'good', 'nice', 'thanks', 'awesome', 'amazing', 'excellent', 'wonderful', 'joy']
     negative_words = ['sad', 'bad', 'hate', 'terrible', 'awful', 'sorry', 'angry', 'upset', 'disappointed', 'problem', 'fail']
     
     def basic_sentiment(text):
         text = text.lower()
-        pos_count = sum(1 for word in positive_words if word in text)
-        neg_count = sum(1 for word in negative_words if word in text)
+        words = text.split()
+        pos_count = sum(1 for word in words if word in positive_words)
+        neg_count = sum(1 for word in words if word in negative_words)
         
         if pos_count > neg_count:
             return 0.5, 'Positive'
@@ -238,7 +241,6 @@ def sentiment_analysis(df, selected_user='Overall'):
         else:
             return 0, 'Neutral'
     
-    # Apply sentiment analysis
     sentiments = []
     labels = []
     
@@ -250,14 +252,14 @@ def sentiment_analysis(df, selected_user='Overall'):
     df['sentiment'] = sentiments
     df['sentiment_label'] = labels
     
-    sentiment_counts = df['sentiment_label'].value_counts()
+    sentiment_counts = df['sentiment_label'].value_counts().to_dict()
     
-    # Ensure all sentiment categories exist
+    # Ensure all categories are included
     for label in ['Positive', 'Negative', 'Neutral']:
-        if label not in sentiment_counts:
-            sentiment_counts[label] = 0
+        sentiment_counts.setdefault(label, 0)
     
     return sentiment_counts, df
+
 
 def response_time_analysis(df, selected_user='Overall'):
     # FIX: Calculate response times between users
@@ -288,7 +290,7 @@ def response_time_analysis(df, selected_user='Overall'):
     if len(df_responses) > 0:
         avg_response_time = df_responses['response_mins'].mean()
         response_df = df_responses[['user', 'next_user', 'response_mins']].copy()
-        return round(avg_response_time, 2), response_df
+        return np.round(avg_response_time, 2), response_df
     else:
         # Return defaults if no valid responses
         return 0, pd.DataFrame(columns=['user', 'next_user', 'response_mins'])
